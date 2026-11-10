@@ -1,0 +1,4078 @@
+{
+  "info": {
+    "name": "Perfume Store - Complete API Walkthrough",
+    "_postman_id": "e238f90a-355e-4f8c-b21f-434e10663add",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run all folders in their numbered order with ONE iteration. Configure baseUrl, adminEmail and adminPassword first. The default admin belongs to perfume-store-seed.sql; that seed is optional if another admin exists. This collection creates fresh demo accounts, categories, products, an order and reviews on the running database. It uses captured IDs rather than assuming IDs start at 1. It never sends the MySQL password and never resets existing accounts. Expected 400/401/403/404/409 responses are passing negative tests. An unexpected HTTP status stops the remaining collection workflow. Run from the first request again to start a fresh demonstration. All URLs point to baseUrl; there are no external API calls. Surviving demo records intentionally preserve order history and soft-delete relationships. This collection cannot itself read terminal AOP logs or prove simultaneous checkout behavior; those checks belong to StoreIntegrationTests and terminal observation."
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string",
+      "description": "Running application URL; omit the trailing slash."
+    },
+    {
+      "key": "adminEmail",
+      "value": "seed.admin@perfume.test",
+      "type": "string",
+      "description": "Existing administrator email. Default belongs to the optional demo seed."
+    },
+    {
+      "key": "adminPassword",
+      "value": "DemoPerfume123!",
+      "type": "string",
+      "description": "Demo password only. Set a local value if your administrator differs."
+    },
+    {
+      "key": "customerPassword",
+      "value": "PostmanDemo123!",
+      "type": "string",
+      "description": "Password assigned to the two demo customers created by each run."
+    },
+    {
+      "key": "runTag",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psCustomerEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psOtherCustomerEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psCategoryOneId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psCategoryTwoId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psUnusedCategoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psProductId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psSecondProductId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psSoldOutId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psOrderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psCustomerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psOtherCustomerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psReviewId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psProductName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psPurchaseName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "psStockBefore",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Initialize and administrator login",
+      "description": "Run the entire collection in order. This folder creates a fresh run tag and verifies administrator credentials before any mutations.",
+      "item": [
+        {
+          "name": "01 - Initialize run and read public catalog",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products",
+            "description": "Always start here. Resets generated IDs and uses unique customer/category/product names for this run. Does not erase existing application records."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const tag = Date.now().toString() + \"-\" + Math.floor(Math.random() * 1000000).toString();",
+                  "pm.collectionVariables.set(\"runTag\", tag);",
+                  "pm.collectionVariables.unset(\"psCategoryOneId\");",
+                  "pm.collectionVariables.unset(\"psCategoryTwoId\");",
+                  "pm.collectionVariables.unset(\"psUnusedCategoryId\");",
+                  "pm.collectionVariables.unset(\"psProductId\");",
+                  "pm.collectionVariables.unset(\"psSecondProductId\");",
+                  "pm.collectionVariables.unset(\"psSoldOutId\");",
+                  "pm.collectionVariables.unset(\"psOrderId\");",
+                  "pm.collectionVariables.unset(\"psCustomerId\");",
+                  "pm.collectionVariables.unset(\"psOtherCustomerId\");",
+                  "pm.collectionVariables.unset(\"psReviewId\");",
+                  "pm.collectionVariables.unset(\"psProductName\");",
+                  "pm.collectionVariables.unset(\"psPurchaseName\");",
+                  "pm.collectionVariables.unset(\"psStockBefore\");",
+                  "pm.collectionVariables.unset(\"psCustomerEmail\");",
+                  "pm.collectionVariables.unset(\"psOtherCustomerEmail\");",
+                  "pm.collectionVariables.set(\"psCustomerEmail\", \"postman.alice.\" + tag + \"@perfume.test\");",
+                  "pm.collectionVariables.set(\"psOtherCustomerEmail\", \"postman.bob.\" + tag + \"@perfume.test\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Catalog is paginated\", function () { pm.expect(data.content).to.be.an(\"array\"); pm.expect(data.content.length).to.be.at.most(20); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "02 - Verify administrator credentials",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me",
+            "description": "Default credentials are for the optional SQL seed. Replace adminEmail/adminPassword collection variables if you use a different administrator."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Account has ADMIN role\", function () { pm.expect(data.role).to.eql(\"ADMIN\"); });",
+                  "    if (data.role !== \"ADMIN\") { pm.execution.setNextRequest(null); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Accounts and authentication",
+      "description": "Creates two fresh customers. HTTP Basic verifies real database credentials; no JWT or session login endpoint is used.",
+      "item": [
+        {
+          "name": "03 - Register Alice",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "03 - Register Alice",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Alice\",\n  \"email\": \"{{psCustomerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psCustomerId\", String(data.id));",
+                  "    pm.test(\"Registration creates CUSTOMER without a hash\", function () { pm.expect(data.role).to.eql(\"CUSTOMER\"); pm.expect(data).not.to.have.property(\"passwordHash\"); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "04 - Register Bob",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "04 - Register Bob",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Bob\",\n  \"email\": \"{{psOtherCustomerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psOtherCustomerId\", String(data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "05 - Authenticate Alice",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me",
+            "description": "05 - Authenticate Alice"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Authenticated ID matches Alice\", function () { pm.expect(String(data.id)).to.eql(pm.collectionVariables.get(\"psCustomerId\")); pm.expect(data.role).to.eql(\"CUSTOMER\"); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "06 - Reject duplicate registration",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "06 - Reject duplicate registration",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Duplicate Alice\",\n  \"email\": \"{{psCustomerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "07 - Reject invalid registration",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "07 - Reject invalid registration",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"invalid-email\",\n  \"password\": \"short\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "if (pm.response.code !== 400) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Validation response includes field errors\", function () { pm.expect(data.status).to.eql(400); pm.expect(data.fieldErrors).to.have.property(\"email\"); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "08 - Reject missing credentials",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me",
+            "description": "08 - Reject missing credentials"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "if (pm.response.code !== 401) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "09 - Reject wrong password",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "WrongPassword123!",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me",
+            "description": "09 - Reject wrong password"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "if (pm.response.code !== 401) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Administrator categories",
+      "description": "Creates two assigned categories and a third unused category for deletion. Existing categories are untouched.",
+      "item": [
+        {
+          "name": "10 - Create category one",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/categories",
+            "description": "10 - Create category one",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Woody {{runTag}}\",\n  \"description\": \"Collection-created woody category.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psCategoryOneId\", String(data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "11 - Create category two",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/categories",
+            "description": "11 - Create category two",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Unisex {{runTag}}\",\n  \"description\": \"Collection-created unisex category.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psCategoryTwoId\", String(data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "12 - Reject duplicate category",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/categories",
+            "description": "12 - Reject duplicate category",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Woody {{runTag}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "13 - Create unused category",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/categories",
+            "description": "13 - Create unused category",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Unused {{runTag}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psUnusedCategoryId\", String(data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "14 - Update unused category",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/categories/{{psUnusedCategoryId}}",
+            "description": "14 - Update unused category",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Updated {{runTag}}\",\n  \"description\": \"Updated category description.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Updated description is returned\", function () { pm.expect(data.description).to.eql(\"Updated category description.\"); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "15 - Read category without authentication",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/categories/{{psCategoryOneId}}",
+            "description": "15 - Read category without authentication"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Correct category is returned\", function () { pm.expect(String(data.id)).to.eql(pm.collectionVariables.get(\"psCategoryOneId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "16 - Browse categories with pagination",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/categories?page=0&size=5",
+            "description": "16 - Browse categories with pagination"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Page size is respected\", function () { pm.expect(data.content.length).to.be.at.most(5); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "17 - Delete unused category",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/categories/{{psUnusedCategoryId}}",
+            "description": "17 - Delete unused category"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code !== 204) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "18 - Deleted category returns 404",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/categories/{{psUnusedCategoryId}}",
+            "description": "18 - Deleted category returns 404"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Products, filters and pagination",
+      "description": "Creates three fictional products, one sold out. Every product ID is captured from the creation response.",
+      "item": [
+        {
+          "name": "19 - Create perfume in two categories",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products",
+            "description": "19 - Create perfume in two categories",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Cedar {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 50.25,\n  \"stockQuantity\": 10,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}},\n    {{psCategoryTwoId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psProductId\", String(data.id));",
+                  "    pm.collectionVariables.set(\"psProductName\", String(data.name));",
+                  "    pm.test(\"Many-to-many assignment is returned\", function () { pm.expect(data.categories).to.have.lengthOf(2); pm.expect(data.stockQuantity).to.eql(10); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "20 - Create second available perfume",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products",
+            "description": "20 - Create second available perfume",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Citrus {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 30,\n  \"stockQuantity\": 8,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psSecondProductId\", String(data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "21 - Create sold-out perfume",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products",
+            "description": "21 - Create sold-out perfume",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Sold Out {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 20,\n  \"stockQuantity\": 0,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psSoldOutId\", String(data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "22 - Read product details publicly",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "22 - Read product details publicly"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Both category IDs are present\", function () { pm.expect(data.categories.map(c => String(c.id))).to.include(pm.collectionVariables.get(\"psCategoryOneId\")); pm.expect(data.categories.map(c => String(c.id))).to.include(pm.collectionVariables.get(\"psCategoryTwoId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "23 - Search for this run",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products?search={{runTag}}",
+            "description": "23 - Search for this run"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Search finds the three demo products\", function () { pm.expect(data.totalElements).to.eql(3); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "24 - Filter by category",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products?categoryId={{psCategoryOneId}}",
+            "description": "24 - Filter by category"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Category contains exactly the three demo products\", function () { pm.expect(data.totalElements).to.eql(3); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "25 - Filter by exact price",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products?categoryId={{psCategoryOneId}}&minPrice=50.25&maxPrice=50.25",
+            "description": "25 - Filter by exact price"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Price filter returns the first product\", function () { pm.expect(data.totalElements).to.eql(1); pm.expect(String(data.content[0].id)).to.eql(pm.collectionVariables.get(\"psProductId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "26 - Filter in-stock perfumes",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products?categoryId={{psCategoryOneId}}&inStock=true",
+            "description": "26 - Filter in-stock perfumes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Two products have stock\", function () { pm.expect(data.totalElements).to.eql(2); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "27 - Filter sold-out perfumes",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products?categoryId={{psCategoryOneId}}&inStock=false",
+            "description": "27 - Filter sold-out perfumes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Only the sold-out product is returned\", function () { pm.expect(data.totalElements).to.eql(1); pm.expect(String(data.content[0].id)).to.eql(pm.collectionVariables.get(\"psSoldOutId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "28 - Sort by price with a one-item page",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products?categoryId={{psCategoryOneId}}&page=0&size=1&sort=price&direction=desc",
+            "description": "28 - Sort by price with a one-item page"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Sorting and page metadata are correct\", function () { pm.expect(data.content).to.have.lengthOf(1); pm.expect(data.totalPages).to.eql(3); pm.expect(String(data.content[0].id)).to.eql(pm.collectionVariables.get(\"psProductId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "29 - Reject an invalid sort field",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products?sort=passwordHash",
+            "description": "29 - Reject an invalid sort field"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "if (pm.response.code !== 400) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "30 - Update product details",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "30 - Update product details",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Cedar Revised {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 50.25,\n  \"stockQuantity\": 10,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}},\n    {{psCategoryTwoId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psProductName\", String(data.name));",
+                  "    pm.test(\"Update preserves both categories\", function () { pm.expect(data.categories).to.have.lengthOf(2); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "31 - Missing product returns structured 404",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/9223372036854775807",
+            "description": "31 - Missing product returns structured 404"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Missing item response is clear\", function () { pm.expect(data.status).to.eql(404); pm.expect(data.message).to.be.a(\"string\"); pm.expect(data.path).to.include(\"/api/products/\"); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Role permissions",
+      "description": "These requests deliberately return 401 or 403. No existing catalog data is changed.",
+      "item": [
+        {
+          "name": "32 - Customer cannot create a product",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products",
+            "description": "32 - Customer cannot create a product",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Forbidden {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 50.25,\n  \"stockQuantity\": 10,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}},\n    {{psCategoryTwoId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", function () { pm.response.to.have.status(403); });",
+                  "if (pm.response.code !== 403) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "33 - Customer cannot update a product",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "33 - Customer cannot update a product",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Forbidden {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 50.25,\n  \"stockQuantity\": 10,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}},\n    {{psCategoryTwoId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", function () { pm.response.to.have.status(403); });",
+                  "if (pm.response.code !== 403) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "34 - Customer cannot delete a product",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "34 - Customer cannot delete a product"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", function () { pm.response.to.have.status(403); });",
+                  "if (pm.response.code !== 403) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "35 - Customer cannot create a category",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/categories",
+            "description": "35 - Customer cannot create a category",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Forbidden {{runTag}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", function () { pm.response.to.have.status(403); });",
+                  "if (pm.response.code !== 403) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "36 - Customer cannot read administrator orders",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/orders",
+            "description": "36 - Customer cannot read administrator orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", function () { pm.response.to.have.status(403); });",
+                  "if (pm.response.code !== 403) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "37 - Anonymous visitor cannot read a cart",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart",
+            "description": "37 - Anonymous visitor cannot read a cart"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "if (pm.response.code !== 401) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "38 - Administrator can read the admin catalog",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/products?search={{runTag}}",
+            "description": "38 - Administrator can read the admin catalog"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Admin sees the three demo products\", function () { pm.expect(data.totalElements).to.eql(3); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Cart and cart privacy",
+      "description": "Uses the two newly registered customers, whose carts start empty. Adding to a cart does not reserve or deduct stock.",
+      "item": [
+        {
+          "name": "39 - New customer cart is empty",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart",
+            "description": "39 - New customer cart is empty"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Empty cart total is zero\", function () { pm.expect(data.items).to.have.lengthOf(0); pm.expect(data.totalAmount).to.eql(0); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "40 - Add two bottles",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items",
+            "description": "40 - Add two bottles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{psProductId}},\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Cart total uses quantity two\", function () { pm.expect(data.items).to.have.lengthOf(1); pm.expect(data.items[0].quantity).to.eql(2); pm.expect(data.totalAmount).to.eql(100.5); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "41 - Add same product and merge quantity",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items",
+            "description": "41 - Add same product and merge quantity",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{psProductId}},\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"One line now contains three bottles\", function () { pm.expect(data.items).to.have.lengthOf(1); pm.expect(data.items[0].quantity).to.eql(3); pm.expect(data.totalAmount).to.eql(150.75); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "42 - Update quantity to two",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items/{{psProductId}}",
+            "description": "42 - Update quantity to two",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Updated total is correct\", function () { pm.expect(data.items[0].quantity).to.eql(2); pm.expect(data.totalAmount).to.eql(100.5); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "43 - Reject zero quantity",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items/{{psProductId}}",
+            "description": "43 - Reject zero quantity",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "if (pm.response.code !== 400) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "44 - Reject quantity above stock",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items/{{psProductId}}",
+            "description": "44 - Reject quantity above stock",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 11\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "45 - Reject sold-out product",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items",
+            "description": "45 - Reject sold-out product",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{psSoldOutId}},\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "46 - Add a second cart line",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items",
+            "description": "46 - Add a second cart line",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{psSecondProductId}},\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Two lines contribute to the total\", function () { pm.expect(data.items).to.have.lengthOf(2); pm.expect(data.totalAmount).to.eql(130.5); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "47 - Bob cannot select Alice cart using a query parameter",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart?userId={{psCustomerId}}",
+            "description": "47 - Bob cannot select Alice cart using a query parameter"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Bob still sees his own empty cart\", function () { pm.expect(data.items).to.have.lengthOf(0); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "48 - Bob cannot update an item in Alice cart",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items/{{psProductId}}",
+            "description": "48 - Bob cannot update an item in Alice cart",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "49 - Remove the second line from Alice cart",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart/items/{{psSecondProductId}}",
+            "description": "49 - Remove the second line from Alice cart"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code !== 204) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "50 - Confirm cart and total before purchase",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart",
+            "description": "50 - Confirm cart and total before purchase"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Cart retains the valid quantity after rejected updates\", function () { pm.expect(data.items).to.have.lengthOf(1); pm.expect(data.items[0].quantity).to.eql(2); pm.expect(data.totalAmount).to.eql(100.5); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "51 - Record stock before purchase",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "51 - Record stock before purchase"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psStockBefore\", String(data.stockQuantity));",
+                  "    pm.collectionVariables.set(\"psPurchaseName\", String(data.name));",
+                  "    pm.test(\"Cart operations have not deducted stock\", function () { pm.expect(data.stockQuantity).to.eql(10); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - Checkout and order privacy",
+      "description": "Creates one real demo order on the running MySQL-backed application and verifies stock, snapshots, cart clearing and ownership.",
+      "item": [
+        {
+          "name": "52 - Checkout Alice cart",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders/checkout",
+            "description": "52 - Checkout Alice cart"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psOrderId\", String(data.id));",
+                  "    pm.test(\"Order records the purchase\", function () { pm.expect(data.totalAmount).to.eql(100.5); pm.expect(data.items).to.have.lengthOf(1); pm.expect(data.items[0].quantity).to.eql(2); pm.expect(data.items[0].unitPrice).to.eql(50.25); pm.expect(String(data.userId)).to.eql(pm.collectionVariables.get(\"psCustomerId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "53 - Cart is cleared",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart",
+            "description": "53 - Cart is cleared"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Purchased cart is empty\", function () { pm.expect(data.items).to.have.lengthOf(0); pm.expect(data.totalAmount).to.eql(0); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "54 - Stock decreases by purchased quantity",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "54 - Stock decreases by purchased quantity"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Stock decreased by exactly two\", function () { pm.expect(data.stockQuantity).to.eql(Number(pm.collectionVariables.get(\"psStockBefore\")) - 2); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "55 - Reject checkout of the cleared cart",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders/checkout",
+            "description": "55 - Reject checkout of the cleared cart"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "56 - Rejected checkout does not deduct stock again",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "56 - Rejected checkout does not deduct stock again"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Stock stays at eight\", function () { pm.expect(data.stockQuantity).to.eql(8); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "57 - Alice can read her order history",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders",
+            "description": "57 - Alice can read her order history"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Exactly one new order belongs to Alice\", function () { pm.expect(data.totalElements).to.eql(1); pm.expect(String(data.content[0].id)).to.eql(pm.collectionVariables.get(\"psOrderId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "58 - Alice can read the order details",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders/{{psOrderId}}",
+            "description": "58 - Alice can read the order details"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Correct order is returned\", function () { pm.expect(String(data.id)).to.eql(pm.collectionVariables.get(\"psOrderId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "59 - Bob history excludes Alice orders",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders",
+            "description": "59 - Bob history excludes Alice orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Bob has no orders\", function () { pm.expect(data.totalElements).to.eql(0); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "60 - Bob cannot read Alice order by ID",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders/{{psOrderId}}",
+            "description": "60 - Bob cannot read Alice order by ID"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "61 - Administrator can inspect the order",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/orders/{{psOrderId}}",
+            "description": "61 - Administrator can inspect the order"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Admin sees the same order\", function () { pm.expect(String(data.id)).to.eql(pm.collectionVariables.get(\"psOrderId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "62 - Administrator can list incoming orders",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/orders?page=0&size=100",
+            "description": "62 - Administrator can list incoming orders"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"The new order appears in admin results\", function () { pm.expect(data.content.some(order => String(order.id) === pm.collectionVariables.get(\"psOrderId\"))).to.eql(true); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "63 - Change current product name and price",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "63 - Change current product name and price",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Cedar Renamed {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 99.99,\n  \"stockQuantity\": 8,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}},\n    {{psCategoryTwoId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Catalog now has the new price\", function () { pm.expect(data.price).to.eql(99.99); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "64 - Purchase snapshots preserve the old name and price",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders/{{psOrderId}}",
+            "description": "64 - Purchase snapshots preserve the old name and price"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"History keeps the purchase values\", function () { pm.expect(data.items[0].productName).to.eql(pm.collectionVariables.get(\"psPurchaseName\")); pm.expect(data.items[0].unitPrice).to.eql(50.25); pm.expect(data.totalAmount).to.eql(100.5); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 - Failed multi-item checkout",
+      "description": "Simulates a stock change after adding to cart. Verifies no partial stock deduction or order save on MySQL; restores the second product stock afterward.",
+      "item": [
+        {
+          "name": "65 - Bob adds first product",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items",
+            "description": "65 - Bob adds first product",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{psProductId}},\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "66 - Bob adds two of the second product",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items",
+            "description": "66 - Bob adds two of the second product",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{psSecondProductId}},\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "67 - Admin reduces second product stock after it entered the cart",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psSecondProductId}}",
+            "description": "67 - Admin reduces second product stock after it entered the cart",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Citrus {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 30,\n  \"stockQuantity\": 1,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "68 - Reject the whole unfulfillable order",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders/checkout",
+            "description": "68 - Reject the whole unfulfillable order"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "69 - First product stock is unchanged",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "69 - First product stock is unchanged"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"No partial deduction from the available line\", function () { pm.expect(data.stockQuantity).to.eql(8); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "70 - Second product stock is unchanged",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psSecondProductId}}",
+            "description": "70 - Second product stock is unchanged"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Unavailable line stock is not negative\", function () { pm.expect(data.stockQuantity).to.eql(1); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "71 - Failed order did not enter Bob history",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders",
+            "description": "71 - Failed order did not enter Bob history"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"No half-saved order exists\", function () { pm.expect(data.totalElements).to.eql(0); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "72 - Failed checkout keeps both cart lines",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart",
+            "description": "72 - Failed checkout keeps both cart lines"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Cart remains available for correction\", function () { pm.expect(data.items).to.have.lengthOf(2); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "73 - Restore second product stock",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psSecondProductId}}",
+            "description": "73 - Restore second product stock",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PM Citrus {{runTag}}\",\n  \"brand\": \"Postman Training House\",\n  \"description\": \"Fictional collection-run product.\",\n  \"price\": 30,\n  \"stockQuantity\": 8,\n  \"sizeMl\": 100,\n  \"concentration\": \"Eau de Parfum\",\n  \"categoryIds\": [\n    {{psCategoryOneId}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "74 - Clear Bob demo cart",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart",
+            "description": "74 - Clear Bob demo cart"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code !== 204) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "75 - Confirm Bob cart is empty",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/cart",
+            "description": "75 - Confirm Bob cart is empty"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Clear operation removes all lines\", function () { pm.expect(data.items).to.have.lengthOf(0); pm.expect(data.totalAmount).to.eql(0); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08 - Reviews and authorship",
+      "description": "Reviews use the authenticated customer identity. The implementation permits one review per customer per active product; a prior purchase is not required by the assignment.",
+      "item": [
+        {
+          "name": "76 - Alice leaves a review",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}/reviews",
+            "description": "76 - Alice leaves a review",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"A balanced sample fragrance.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set(\"psReviewId\", String(data.id));",
+                  "    pm.test(\"Review is tied to Alice and this product\", function () { pm.expect(String(data.authorId)).to.eql(pm.collectionVariables.get(\"psCustomerId\")); pm.expect(String(data.productId)).to.eql(pm.collectionVariables.get(\"psProductId\")); pm.expect(data).not.to.have.property(\"authorEmail\"); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "77 - Reject duplicate review",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}/reviews",
+            "description": "77 - Reject duplicate review",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Duplicate review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "78 - Bob can write his own review",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psOtherCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}/reviews",
+            "description": "78 - Bob can write his own review",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"comment\": \"A pleasant sample perfume.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Bob is the author of his review\", function () { pm.expect(String(data.authorId)).to.eql(pm.collectionVariables.get(\"psOtherCustomerId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "79 - Reject invalid review rating",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}/reviews",
+            "description": "79 - Reject invalid review rating",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 6,\n  \"comment\": \"Rating must be one to five.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+                  "if (pm.response.code !== 400) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "80 - Read reviews publicly with pagination",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}/reviews?page=0&size=1",
+            "description": "80 - Read reviews publicly with pagination"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Both reviews are counted with one per page\", function () { pm.expect(data.content).to.have.lengthOf(1); pm.expect(data.totalElements).to.eql(2); pm.expect(data.totalPages).to.eql(2); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "81 - Anonymous users cannot leave reviews",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}/reviews",
+            "description": "81 - Anonymous users cannot leave reviews",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Anonymous review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "if (pm.response.code !== 401) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "09 - Soft deletion and final checks",
+      "description": "Soft-deletes only the first product created by this run. Historical orders, reviews and assigned category records remain intentionally.",
+      "item": [
+        {
+          "name": "82 - Administrator removes the purchased product",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "82 - Administrator removes the purchased product"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code !== 204) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "83 - Removed product is hidden publicly",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products/{{psProductId}}",
+            "description": "83 - Removed product is hidden publicly"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "84 - Public in-stock category results exclude the removed product",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/products?categoryId={{psCategoryOneId}}&inStock=true",
+            "description": "84 - Public in-stock category results exclude the removed product"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Only the second available product remains\", function () { pm.expect(data.totalElements).to.eql(1); pm.expect(String(data.content[0].id)).to.eql(pm.collectionVariables.get(\"psSecondProductId\")); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "85 - Administrator still sees inactive products",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/products?search={{runTag}}",
+            "description": "85 - Administrator still sees inactive products"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Inactive product remains in admin results\", function () { pm.expect(data.totalElements).to.eql(3); const product = data.content.find(p => String(p.id) === pm.collectionVariables.get(\"psProductId\")); pm.expect(product).not.to.eql(undefined); pm.expect(product.active).to.eql(false); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "86 - Order survives product removal",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/orders/{{psOrderId}}",
+            "description": "86 - Order survives product removal"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "    const data = pm.response.json();",
+                  "    pm.test(\"Historical snapshot remains intact\", function () { pm.expect(data.items[0].productName).to.eql(pm.collectionVariables.get(\"psPurchaseName\")); pm.expect(data.items[0].unitPrice).to.eql(50.25); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "87 - Cannot add an inactive product to cart",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{psCustomerEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/cart/items",
+            "description": "87 - Cannot add an inactive product to cart",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{psProductId}},\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "88 - Assigned category cannot be deleted",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/categories/{{psCategoryOneId}}",
+            "description": "88 - Assigned category cannot be deleted"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "89 - Missing category returns 404",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminEmail}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/api/categories/9223372036854775807",
+            "description": "89 - Missing category returns 404"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) {",
+                  "    pm.execution.setNextRequest(null);",
+                  "} else {",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}
