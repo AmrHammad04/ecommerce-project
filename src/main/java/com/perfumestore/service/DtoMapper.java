@@ -45,7 +45,7 @@ public class DtoMapper {
                 new ArrayList<>(product.getCategories());
 
         sortedCategories.sort(
-                Comparator.comparing(Category::getId)
+                Comparator.comparing((Category category) -> category.getId())
         );
 
         List<CategoryResponse> categories = new ArrayList<>();

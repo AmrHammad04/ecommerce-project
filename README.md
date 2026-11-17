@@ -6,7 +6,7 @@ The assignment is an API-only project. Open an API endpoint or use Postman; ther
 
 ## Technology and structure
 
-- Java 21 target; Spring Boot 4.1.2; Maven Wrapper.
+- Java 25 target; Spring Boot 4.1.2; Maven Wrapper.
 - Spring Web MVC, Spring Data JPA/Hibernate, Bean Validation and Spring Security.
 - MySQL for the running application; isolated H2 for `StoreIntegrationTests`.
 - HTTP Basic authentication, JDBC user lookup, BCrypt password hashes and CUSTOMER/ADMIN roles.
@@ -41,7 +41,7 @@ Place the supplied documentation and collection as follows:
 
 ## Prerequisites
 
-1. A JDK compatible with the Java 21 target. Confirm `java -version` and `JAVA_HOME` point to the intended JDK.
+1. A JDK compatible with the Java 25 target. Confirm `java -version` and `JAVA_HOME` point to JDK 25.
 2. A running MySQL server, normally at `localhost:3306`.
 3. A MySQL account that can use the application schema and create/update its tables during development.
 4. Postman for manual API checks or the collection walkthrough.
