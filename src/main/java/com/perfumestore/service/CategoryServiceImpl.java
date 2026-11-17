@@ -7,6 +7,9 @@ import com.perfumestore.dto.response.CategoryResponse;
 import com.perfumestore.dto.response.PageResponse;
 import com.perfumestore.entity.Category;
 import com.perfumestore.exception.ApiException;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -32,23 +35,16 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Cacheable(cacheNames = "categoryPages")
     public PageResponse<CategoryResponse> list(int page, int size) {
-        Pageable pageable = PageSupport.request(
-                page,
-                size,
-                "name",
-                "asc",
-                Set.of("name")
-        );
-
-        Page<CategoryResponse> result = categoryRepository
-                .findAll(pageable)
-                .map(dtoMapper::category);
+        Pageable pageable = PageSupport.request(page,size,"name","asc",Set.of("name"));
+        Page<CategoryResponse> result = categoryRepository.findAll(pageable).map(dtoMapper::category);
 
         return PageResponse.from(result);
     }
 
     @Override
+    @Cacheable(cacheNames = "categories", key = "#id")
     public CategoryResponse get(Long id) {
         Category category = requireCategory(id);
 
@@ -57,13 +53,12 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "categoryPages", allEntries = true)
     public CategoryResponse create(CategoryRequest request) {
         String name = request.getName().trim();
 
         if (categoryRepository.existsByNameIgnoreCase(name)) {
-            throw ApiException.conflict(
-                    "Category name already exists."
-            );
+            throw ApiException.conflict("Category name already exists.");
         }
 
         Category category = new Category();
@@ -77,14 +72,18 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "categories", key = "#id"),
+            @CacheEvict(cacheNames = "categoryPages", allEntries = true),
+            @CacheEvict(cacheNames = "products", allEntries = true),
+            @CacheEvict(cacheNames = "productPages", allEntries = true)
+    })
     public CategoryResponse update(Long id, CategoryRequest request) {
         Category category = requireCategory(id);
         String name = request.getName().trim();
 
         if (categoryRepository.existsByNameIgnoreCaseAndIdNot(name, id)) {
-            throw ApiException.conflict(
-                    "Category name already exists."
-            );
+            throw ApiException.conflict("Category name already exists.");
         }
 
         category.setName(name);
@@ -95,23 +94,22 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "categories", key = "#id"),
+            @CacheEvict(cacheNames = "categoryPages", allEntries = true),
+            @CacheEvict(cacheNames = "productPages", allEntries = true)
+    })
     public void delete(Long id) {
         Category category = requireCategory(id);
 
         if (productRepository.existsByCategories_Id(id)) {
-            throw ApiException.conflict(
-                    "Reassign products before deleting their category, "
-                    + "including inactive products."
-            );
+            throw ApiException.conflict("Reassign products before deleting their category, "+ "including inactive products.");
         }
 
         categoryRepository.delete(category);
     }
 
     private Category requireCategory(Long id) {
-        return categoryRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound(
-                        "Category not found: " + id
-                ));
+        return categoryRepository.findById(id).orElseThrow(() -> ApiException.notFound("Category not found: " + id));
     }
 }

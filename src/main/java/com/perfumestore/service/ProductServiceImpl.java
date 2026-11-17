@@ -9,6 +9,9 @@ import com.perfumestore.entity.Category;
 import com.perfumestore.entity.Product;
 import com.perfumestore.exception.ApiException;
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -36,6 +39,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Cacheable(cacheNames = "productPages")
     public PageResponse<ProductResponse> list(
             String search,
             Long categoryId,
@@ -51,8 +55,7 @@ public class ProductServiceImpl implements ProductService {
         validateFilters(categoryId, minPrice, maxPrice);
 
         Pageable pageable = PageSupport.request(page,size,sort,direction,
-                Set.of("id", "name", "brand", "price", "stockQuantity")
-        );
+                Set.of("id", "name", "brand", "price", "stockQuantity"));
 
         Specification<Product> specification = (root, query, builder) -> {
             List<Predicate> conditions = new ArrayList<>();
@@ -62,8 +65,7 @@ public class ProductServiceImpl implements ProductService {
             }
 
             if (search != null && !search.isBlank()) {
-                String escaped = search.trim()
-                        .toLowerCase(Locale.ROOT)
+                String escaped = search.trim().toLowerCase(Locale.ROOT)
                         .replace("!", "!!")
                         .replace("%", "!%")
                         .replace("_", "!_");
@@ -87,73 +89,40 @@ public class ProductServiceImpl implements ProductService {
             }
 
             if (categoryId != null) {
-                conditions.add(
-                        builder.equal(
-                                root.join("categories").get("id"),
-                                categoryId
-                        )
-                );
+                conditions.add(builder.equal(root.join("categories").get("id"),categoryId));
             }
 
             if (minPrice != null) {
-                conditions.add(
-                        builder.greaterThanOrEqualTo(
-                                root.get("price"),
-                                minPrice
-                        )
-                );
+                conditions.add(builder.greaterThanOrEqualTo(root.get("price"),minPrice));
             }
 
             if (maxPrice != null) {
-                conditions.add(
-                        builder.lessThanOrEqualTo(
-                                root.get("price"),
-                                maxPrice
-                        )
-                );
+                conditions.add(builder.lessThanOrEqualTo(root.get("price"),maxPrice));
             }
 
             if (inStock != null) {
                 if (inStock) {
-                    conditions.add(
-                            builder.greaterThan(
-                                    root.get("stockQuantity"),
-                                    0
-                            )
-                    );
+                    conditions.add(builder.greaterThan(root.get("stockQuantity"),0));
                 } else {
-                    conditions.add(
-                            builder.equal(
-                                    root.get("stockQuantity"),
-                                    0
-                            )
-                    );
+                    conditions.add(builder.equal(root.get("stockQuantity"), 0));
                 }
             }
 
-            return builder.and(
-                    conditions.toArray(new Predicate[0])
-            );
+            return builder.and(conditions.toArray(new Predicate[0]));
         };
 
-        Page<ProductResponse> result = productRepository
-                .findAll(specification, pageable)
-                .map(dtoMapper::product);
+        Page<ProductResponse> result = productRepository.findAll(specification, pageable).map(dtoMapper::product);
 
         return PageResponse.from(result);
     }
 
     @Override
+    @Cacheable(cacheNames = "products", key = "#id")
     public ProductResponse get(Long id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> ApiException.notFound(
-                        "Product not found: " + id
-                ));
+        Product product = productRepository.findById(id).orElseThrow(() -> ApiException.notFound("Product not found: " + id));
 
         if (!product.isActive()) {
-            throw ApiException.notFound(
-                    "Product not found: " + id
-            );
+            throw ApiException.notFound("Product not found: " + id);
         }
 
         return dtoMapper.product(product);
@@ -161,6 +130,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "productPages", allEntries = true)
     public ProductResponse create(ProductRequest request) {
         Product product = new Product();
 
@@ -173,6 +143,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#id"),
+            @CacheEvict(cacheNames = "productPages", allEntries = true)
+    })
     public ProductResponse update(Long id, ProductRequest request) {
         Product product = requireLockedProduct(id);
 
@@ -183,6 +157,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#id"),
+            @CacheEvict(cacheNames = "productPages", allEntries = true)
+    })
     public void delete(Long id) {
         Product product = requireLockedProduct(id);
 
@@ -197,14 +175,10 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void applyRequest(Product product, ProductRequest request) {
-        List<Category> categories = categoryRepository.findAllById(
-                request.getCategoryIds()
-        );
+        List<Category> categories = categoryRepository.findAllById(request.getCategoryIds());
 
         if (categories.size() != request.getCategoryIds().size()) {
-            throw ApiException.notFound(
-                    "One or more categories do not exist."
-            );
+            throw ApiException.notFound("One or more categories do not exist.");
         }
 
         product.setName(request.getName().trim());
@@ -214,7 +188,6 @@ public class ProductServiceImpl implements ProductService {
         product.setStockQuantity(request.getStockQuantity());
         product.setSizeMl(request.getSizeMl());
         product.setConcentration(request.getConcentration());
-
         product.getCategories().clear();
         product.getCategories().addAll(categories);
     }
@@ -225,30 +198,19 @@ public class ProductServiceImpl implements ProductService {
             BigDecimal maxPrice) {
 
         if (categoryId != null && categoryId <= 0) {
-            throw ApiException.badRequest(
-                    "Category ID must be positive."
-            );
+            throw ApiException.badRequest("Category ID must be positive.");
         }
 
         if (minPrice != null && minPrice.signum() < 0) {
-            throw ApiException.badRequest(
-                    "Minimum price cannot be negative."
-            );
+            throw ApiException.badRequest("Minimum price cannot be negative.");
         }
 
         if (maxPrice != null && maxPrice.signum() < 0) {
-            throw ApiException.badRequest(
-                    "Maximum price cannot be negative."
-            );
+            throw ApiException.badRequest("Maximum price cannot be negative.");
         }
 
-        if (minPrice != null
-                && maxPrice != null
-                && minPrice.compareTo(maxPrice) > 0) {
-
-            throw ApiException.badRequest(
-                    "Minimum price must not exceed maximum price."
-            );
+        if (minPrice != null&& maxPrice != null&& minPrice.compareTo(maxPrice) > 0) {
+            throw ApiException.badRequest("Minimum price must not exceed maximum price.");
         }
     }
 }

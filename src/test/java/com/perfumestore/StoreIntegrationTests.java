@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -84,6 +85,9 @@ class StoreIntegrationTests {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private CacheManager cacheManager;
+
     private final JsonMapper json = JsonMapper.builder().build();
 
     private long aliceId;
@@ -103,6 +107,11 @@ class StoreIntegrationTests {
         }
 
         System.out.println("\n[TEST] " + testInfo.getDisplayName());
+
+        // These tests reset SQL data directly, outside service invalidation.
+        for (String cacheName : cacheManager.getCacheNames()) {
+            Objects.requireNonNull(cacheManager.getCache(cacheName)).clear();
+        }
 
         for (String table : List.of("reviews", "order_items", "orders",
                 "cart_items", "carts", "product_categories", "products",

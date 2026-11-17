@@ -14,6 +14,7 @@ import com.perfumestore.entity.Product;
 import com.perfumestore.exception.ApiException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -49,6 +50,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     @LogStoreAction
+    // Checkout always executes; only cached catalog copies are removed.
+    @CacheEvict(cacheNames = {"products", "productPages"}, allEntries = true)
     public OrderResponse checkout(Long userId) {
         Cart cart = cartRepository.findLockedByUserId(userId)
                 .orElseThrow(() -> ApiException.notFound("Cart not found."));
