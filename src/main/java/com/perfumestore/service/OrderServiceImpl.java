@@ -50,7 +50,6 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     @LogStoreAction
-    // Checkout always executes; only cached catalog copies are removed.
     @CacheEvict(cacheNames = {"products", "productPages"}, allEntries = true)
     public OrderResponse checkout(Long userId) {
         Cart cart = cartRepository.findLockedByUserId(userId)
